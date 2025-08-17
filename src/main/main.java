@@ -1,45 +1,40 @@
-import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.stage.Stage;
+package app;
+
 import model.Event;
 import controller.EventController;
 
+import javax.swing.*;
+import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class Main extends Application {
+public class Main {
+    private static EventController controller = new EventController();
 
-    private EventController controller = new EventController();
-    private ListView<Event> listView = new ListView<>();
+    public static void main(String[] args) {
+        controller.loadEventsFromFile();
 
-    @Override
-    public void start(Stage primaryStage) {
-        controller.loadEventsFromFile(); // load saved events
-        listView.getItems().addAll(controller.getEvents());
+        JFrame frame = new JFrame("Events For You");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(700, 400);
 
-        primaryStage.setTitle("Events For You");
+        DefaultListModel<Event> listModel = new DefaultListModel<>();
+        JList<Event> eventList = new JList<>(listModel);
+        for (Event e : controller.getEvents()) {
+            listModel.addElement(e);
+        }
 
-        // Input fields
-        TextField titleField = new TextField();
-        titleField.setPromptText("Event Title");
+        JTextField titleField = new JTextField(15);
+        JTextField locationField = new JTextField(15);
+        JTextField startField = new JTextField(15);
+        startField.setToolTipText("yyyy-MM-ddTHH:mm");
+        JTextField endField = new JTextField(15);
+        endField.setToolTipText("yyyy-MM-ddTHH:mm");
 
-        TextField locationField = new TextField();
-        locationField.setPromptText("Location");
+        JButton addButton = new JButton("Add Event");
+        JButton removeButton = new JButton("Remove Selected");
 
-        TextField startField = new TextField();
-        startField.setPromptText("Start Time (yyyy-MM-ddTHH:mm)");
-
-        TextField endField = new TextField();
-        endField.setPromptText("End Time (yyyy-MM-ddTHH:mm)");
-
-        // Buttons
-        Button addButton = new Button("Add Event");
-        Button removeButton = new Button("Remove Selected");
-
-        addButton.setOnAction(e -> {
+        addButton.addActionListener(e -> {
             try {
                 String title = titleField.getText();
                 String location = locationField.getText();
@@ -48,46 +43,51 @@ public class Main extends Application {
 
                 Event event = new Event(title, start, end, location);
                 controller.addEvent(event);
-                listView.getItems().add(event);
+                listModel.addElement(event);
 
-                // Clear inputs
-                titleField.clear();
-                locationField.clear();
-                startField.clear();
-                endField.clear();
+                titleField.setText("");
+                locationField.setText("");
+                startField.setText("");
+                endField.setText("");
 
             } catch (Exception ex) {
-                Alert alert = new Alert(Alert.AlertType.ERROR, "Invalid input. Please check date format.");
-                alert.showAndWait();
+                JOptionPane.showMessageDialog(frame, "Invalid input. Check date format yyyy-MM-ddTHH:mm.");
             }
         });
 
-        removeButton.setOnAction(e -> {
-            Event selected = listView.getSelectionModel().getSelectedItem();
+        removeButton.addActionListener(e -> {
+            Event selected = eventList.getSelectedValue();
             if (selected != null) {
                 controller.removeEvent(selected);
-                listView.getItems().remove(selected);
+                listModel.removeElement(selected);
             }
         });
 
-        // Layout
-        VBox inputBox = new VBox(5, titleField, locationField, startField, endField, addButton, removeButton);
-        inputBox.setPadding(new Insets(10));
+        JPanel inputPanel = new JPanel();
+        inputPanel.setLayout(new GridLayout(6, 2, 5, 5));
+        inputPanel.add(new JLabel("Title:"));
+        inputPanel.add(titleField);
+        inputPanel.add(new JLabel("Location:"));
+        inputPanel.add(locationField);
+        inputPanel.add(new JLabel("Start Time:"));
+        inputPanel.add(startField);
+        inputPanel.add(new JLabel("End Time:"));
+        inputPanel.add(endField);
+        inputPanel.add(addButton);
+        inputPanel.add(removeButton);
 
-        HBox root = new HBox(10, inputBox, listView);
-        root.setPadding(new Insets(10));
+        frame.setLayout(new BorderLayout());
+        frame.add(inputPanel, BorderLayout.NORTH);
+        frame.add(new JScrollPane(eventList), BorderLayout.CENTER);
 
-        Scene scene = new Scene(root, 700, 400);
-        primaryStage.setScene(scene);
-        primaryStage.show();
-    }
+        frame.setVisible(true);
 
-    @Override
-    public void stop() {
-        controller.saveEventsToFile(); // save events when app closes
-    }
-
-    public static void main(String[] args) {
-        launch(args);
+        // Save events on close
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                controller.saveEventsToFile();
+            }
+        });
     }
 }
